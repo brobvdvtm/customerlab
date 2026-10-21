@@ -1,0 +1,363 @@
+apiVersion: v1
+baseDomain: belgrid.net 
+metadata:
+  name: ove-poc
+networking:
+  machineNetwork:
+  - cidr: 172.30.212.0/24 # VLAN 303, management network (bond0 native)
+  clusterNetwork:
+  - cidr: 10.216.0.0/14 # pod network (not routed)
+    hostPrefix: 23
+  serviceNetwork:
+  - 10.215.0.0/16 # internal service network (not routed)
+  networkType: OVNKubernetes
+compute: # initial number of nodes per role
+- name: worker
+  replicas: 2
+controlPlane:
+  name: master
+  replicas: 3
+  platform:
+    baremetal: {}
+platform:
+  baremetal:
+    additionalNTPServers:
+      - 10.90.0.140 # TO CHECK: reachable from VLAN 303
+    apiVIPs:
+      - "CHANGE_ME_API_VIP" # floating IP for the API, free address in 172.30.212.0/24
+    ingressVIPs:
+      - "CHANGE_ME_INGRESS_VIP" # floating IP for the web console and application routes, free address in 172.30.212.0/24
+    provisioningNetwork: "Disabled" # no provisioning network, installation through virtual media
+    # no provisioning network: two free VLAN 303 IPs are needed for the provisioning services
+    bootstrapProvisioningIP: "CHANGE_ME_BOOTSTRAP_PROVISIONING_IP" # provisioning services on the bootstrap VM
+    clusterProvisioningIP: "CHANGE_ME_CLUSTER_PROVISIONING_IP" # provisioning services in the cluster after installation
+    # static IPs: no DHCP on VLAN 303, so the bootstrap VM needs a static configuration
+    bootstrapExternalStaticIP: "CHANGE_ME_BOOTSTRAP_IP" # IP of the bootstrap VM running on the provisioner (jump host)
+    bootstrapExternalStaticGateway: "CHANGE_ME_GATEWAY" # VLAN 303 gateway
+    bootstrapExternalStaticDNS: "CHANGE_ME_DNS" # DNS server (if omitted, the gateway is used as DNS)
+    hosts: # definition of all physical servers
+      # ---------------------------------------------------------------- masters
+      - name: master-0 # short hostname of the server
+        role: master
+        bootMode: UEFI
+        bmc: # iLO of the physical server (HPE, Redfish virtual media)
+          address: redfish-virtualmedia://172.30.224.42/redfish/v1/Systems/1
+          username: "CHANGE_ME_ILO_USER"
+          password: "CHANGE_ME_ILO_PASSWORD"
+          disableCertificateVerification: True
+        bootMACAddress: "CHANGE_ME_MAC_CHANGE_ME_BOND0_IF1" # MAC address of CHANGE_ME_BOND0_IF1
+        # rootDeviceHints: # recommended with several disks: target the RAID 1 system volume
+        #   deviceName: /dev/sda
+        networkConfig: # nmstate configuration: bond0 (CHANGE_ME_BOND0_IF1+CHANGE_ME_BOND0_IF2), VLAN 303 native, static IP
+          interfaces:
+          - name: bond0
+            type: bond
+            state: up
+            ipv4:
+              enabled: true
+              dhcp: false
+              address:
+              - ip: 172.30.212.174
+                prefix-length: 24
+            ipv6:
+              enabled: false
+            link-aggregation:
+              mode: 802.3ad
+              port:
+              - CHANGE_ME_BOND0_IF1
+              - CHANGE_ME_BOND0_IF2
+          dns-resolver:
+            config:
+              server:
+              - "CHANGE_ME_DNS"
+          routes:
+            config:
+            - destination: 0.0.0.0/0
+              next-hop-address: "CHANGE_ME_GATEWAY"
+              next-hop-interface: bond0
+              table-id: 254
+      - name: master-1
+        role: master
+        bootMode: UEFI
+        bmc:
+          address: redfish-virtualmedia://172.30.224.43/redfish/v1/Systems/1
+          username: "CHANGE_ME_ILO_USER"
+          password: "CHANGE_ME_ILO_PASSWORD"
+          disableCertificateVerification: True
+        bootMACAddress: "CHANGE_ME_MAC_CHANGE_ME_BOND0_IF1"
+        networkConfig:
+          interfaces:
+          - name: bond0
+            type: bond
+            state: up
+            ipv4:
+              enabled: true
+              dhcp: false
+              address:
+              - ip: 172.30.212.175
+                prefix-length: 24
+            ipv6:
+              enabled: false
+            link-aggregation:
+              mode: 802.3ad
+              port:
+              - CHANGE_ME_BOND0_IF1
+              - CHANGE_ME_BOND0_IF2
+          dns-resolver:
+            config:
+              server:
+              - "CHANGE_ME_DNS"
+          routes:
+            config:
+            - destination: 0.0.0.0/0
+              next-hop-address: "CHANGE_ME_GATEWAY"
+              next-hop-interface: bond0
+              table-id: 254
+      - name: master-2
+        role: master
+        bootMode: UEFI
+        bmc:
+          address: redfish-virtualmedia://172.30.224.44/redfish/v1/Systems/1
+          username: "CHANGE_ME_ILO_USER"
+          password: "CHANGE_ME_ILO_PASSWORD"
+          disableCertificateVerification: True
+        bootMACAddress: "CHANGE_ME_MAC_CHANGE_ME_BOND0_IF1"
+        networkConfig:
+          interfaces:
+          - name: bond0
+            type: bond
+            state: up
+            ipv4:
+              enabled: true
+              dhcp: false
+              address:
+              - ip: 172.30.212.176
+                prefix-length: 24
+            ipv6:
+              enabled: false
+            link-aggregation:
+              mode: 802.3ad
+              port:
+              - CHANGE_ME_BOND0_IF1
+              - CHANGE_ME_BOND0_IF2
+          dns-resolver:
+            config:
+              server:
+              - "CHANGE_ME_DNS"
+          routes:
+            config:
+            - destination: 0.0.0.0/0
+              next-hop-address: "CHANGE_ME_GATEWAY"
+              next-hop-interface: bond0
+              table-id: 254
+      # ---------------------------------------------------------------- workers
+      - name: worker-0
+        role: worker
+        bootMode: UEFI
+        bmc:
+          address: redfish-virtualmedia://172.30.224.45/redfish/v1/Systems/1
+          username: "CHANGE_ME_ILO_USER"
+          password: "CHANGE_ME_ILO_PASSWORD"
+          disableCertificateVerification: True
+        bootMACAddress: "CHANGE_ME_MAC_CHANGE_ME_BOND0_IF1"
+        networkConfig:
+          interfaces:
+          # bond0 (CHANGE_ME_BOND0_IF1+CHANGE_ME_BOND0_IF2): VLAN 303 native (management) + VLAN 352 tagged (live migration)
+          - name: bond0
+            type: bond
+            state: up
+            ipv4:
+              enabled: true
+              dhcp: false
+              address:
+              - ip: 172.30.212.177
+                prefix-length: 24
+            ipv6:
+              enabled: false
+            link-aggregation:
+              mode: 802.3ad
+              port:
+              - CHANGE_ME_BOND0_IF1
+              - CHANGE_ME_BOND0_IF2
+          - name: bond0.352
+            type: vlan
+            state: up
+            vlan:
+              base-iface: bond0
+              id: 352
+            ipv4:
+              enabled: true
+              dhcp: false
+              address:
+              - ip: 192.168.1.54
+                prefix-length: 24 # TO CHECK
+            ipv6:
+              enabled: false
+          # bond1 (CHANGE_ME_BOND1_IF1+CHANGE_ME_BOND1_IF2): no native VLAN, VLANs 430/431 (iSCSI) and 434 (NFS) tagged
+          - name: bond1
+            type: bond
+            state: up
+            ipv4:
+              enabled: false
+            ipv6:
+              enabled: false
+            link-aggregation:
+              mode: 802.3ad
+              port:
+              - CHANGE_ME_BOND1_IF1
+              - CHANGE_ME_BOND1_IF2
+          - name: bond1.434
+            type: vlan
+            state: up
+            vlan:
+              base-iface: bond1
+              id: 434
+            ipv4:
+              enabled: true
+              dhcp: false
+              address:
+              - ip: 198.18.16.132
+                prefix-length: 24 # TO CHECK
+            ipv6:
+              enabled: false
+          # VLANs 430 / 431 (iSCSI): add once the IPs are assigned
+          - name: bond1.430
+            type: vlan
+            state: up
+            vlan:
+              base-iface: bond1
+              id: 430
+            ipv4:
+              enabled: true
+              dhcp: false
+              address:
+              - ip: CHANGE_ME
+                prefix-length: 24
+          - name: bond1.431
+            type: vlan
+            state: up
+            vlan:
+              base-iface: bond1
+              id: 431
+            ipv4:
+              enabled: true
+              dhcp: false
+              address:
+              - ip: CHANGE_ME
+                prefix-length: 24
+          # bond2 (CHANGE_ME_BOND2_IF1+CHANGE_ME_BOND2_IF6): VM trunk, no IP (OVS bridge created after installation through NNCP)
+          - name: bond2
+            type: bond
+            state: up
+            ipv4:
+              enabled: false
+            ipv6:
+              enabled: false
+            link-aggregation:
+              mode: 802.3ad
+              port:
+              - CHANGE_ME_BOND2_IF1
+              - CHANGE_ME_BOND2_IF6
+          dns-resolver:
+            config:
+              server:
+              - "CHANGE_ME_DNS"
+          routes:
+            config:
+            - destination: 0.0.0.0/0
+              next-hop-address: "CHANGE_ME_GATEWAY"
+              next-hop-interface: bond0
+              table-id: 254
+      - name: worker-1
+        role: worker
+        bootMode: UEFI
+        bmc:
+          address: redfish-virtualmedia://172.30.224.46/redfish/v1/Systems/1
+          username: "CHANGE_ME_ILO_USER"
+          password: "CHANGE_ME_ILO_PASSWORD"
+          disableCertificateVerification: True
+        bootMACAddress: "CHANGE_ME_MAC_CHANGE_ME_BOND0_IF1"
+        networkConfig:
+          interfaces:
+          - name: bond0
+            type: bond
+            state: up
+            ipv4:
+              enabled: true
+              dhcp: false
+              address:
+              - ip: 172.30.212.178
+                prefix-length: 24
+            ipv6:
+              enabled: false
+            link-aggregation:
+              mode: 802.3ad
+              port:
+              - CHANGE_ME_BOND0_IF1
+              - CHANGE_ME_BOND0_IF2
+          - name: bond0.352
+            type: vlan
+            state: up
+            vlan:
+              base-iface: bond0
+              id: 352
+            ipv4:
+              enabled: true
+              dhcp: false
+              address:
+              - ip: 192.168.1.55
+                prefix-length: 24 # TO CHECK
+            ipv6:
+              enabled: false
+          - name: bond1
+            type: bond
+            state: up
+            ipv4:
+              enabled: false
+            ipv6:
+              enabled: false
+            link-aggregation:
+              mode: 802.3ad
+              port:
+              - CHANGE_ME_BOND1_IF1
+              - CHANGE_ME_BOND1_IF2
+          - name: bond1.434
+            type: vlan
+            state: up
+            vlan:
+              base-iface: bond1
+              id: 434
+            ipv4:
+              enabled: true
+              dhcp: false
+              address:
+              - ip: 198.18.16.133
+                prefix-length: 24 # TO CHECK
+            ipv6:
+              enabled: false
+          # VLANs 430 / 431 (iSCSI): add once the IPs are assigned (see worker-0)
+          - name: bond2
+            type: bond
+            state: up
+            ipv4:
+              enabled: false
+            ipv6:
+              enabled: false
+            link-aggregation:
+              mode: 802.3ad
+              port:
+              - CHANGE_ME_BOND2_IF1
+              - CHANGE_ME_BOND2_IF6
+          dns-resolver:
+            config:
+              server:
+              - "CHANGE_ME_DNS"
+          routes:
+            config:
+            - destination: 0.0.0.0/0
+              next-hop-address: "CHANGE_ME_GATEWAY"
+              next-hop-interface: bond0
+              table-id: 254
+
+pullSecret: CHANGE_ME_TO_ILO_PASSWORD # pull secret downloaded from https://console.redhat.com/openshift/install/metal/installer-provisioned
+sshKey: 
