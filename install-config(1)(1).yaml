@@ -24,9 +24,9 @@ platform:
     additionalNTPServers:
       - 10.90.0.140 # TO CHECK: reachable from VLAN 303
     apiVIPs:
-      - "CHANGE_ME_API_VIP" # floating IP for the API, free address in 172.30.212.0/24
+      - 172.30.212.170 # floating IP for the API, free address in 172.30.212.0/24
     ingressVIPs:
-      - "CHANGE_ME_INGRESS_VIP" # floating IP for the web console and application routes, free address in 172.30.212.0/24
+      - 172.30.212.171 # floating IP for the web console and application routes, free address in 172.30.212.0/24
     provisioningNetwork: "Disabled" # no provisioning network, installation through virtual media
     # no provisioning network: two free VLAN 303 IPs are needed for the provisioning services
     bootstrapProvisioningIP: "CHANGE_ME_BOOTSTRAP_PROVISIONING_IP" # provisioning services on the bootstrap VM
